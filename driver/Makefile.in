@@ -104,7 +104,7 @@ DAEMON_DEFS	= -DDEFAULT_PATH_PREFIX='"@HACKDIR@"' -DAD_DIR='"$(AD_DIR)"'
 DAEMON_SRCS	= xscreensaver.c blurb.c atoms.c clientmsg.c xinput.c prefs.c
 DAEMON_OBJS	= xscreensaver.o blurb.o atoms.o clientmsg.o xinput.o prefs.o \
 		  $(UTILS_BIN)/xmu.o
-DAEMON_LIBS	= $(LIBS_PRE) $(XINPUT_LIBS) -lX11 $(LIBS_POST)
+DAEMON_LIBS	= $(LIBS_PRE) $(XINPUT_LIBS) -lX11 @SYSTEMD_LIBS@ $(LIBS_POST)
 
 GFX_DEFS	= -DLOCALEDIR=\"$(localedir)\"
 GFX_SRCS	= xscreensaver-gfx.c screens.c windows.c subprocs.c \

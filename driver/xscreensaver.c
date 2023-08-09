@@ -229,6 +229,10 @@
 # error The XInput2 extension is required
 #endif
 
+# if defined(HAVE_LIBSYSTEMD) || defined(HAVE_LIBELOGIND)
+#include <systemd/sd-bus.h>
+#endif
+
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
@@ -1000,6 +1004,45 @@ ensure_no_screensaver_running (Display *dpy)
   print_x11_error_p = op;
 }
 
+# if defined(HAVE_LIBSYSTEMD) || defined(HAVE_LIBELOGIND)
+static void set_idle_hint(int idle) {
+  sd_bus *bus = NULL;
+  sd_bus_error error = SD_BUS_ERROR_NULL;
+  int res;
+
+  /* Connect to the system bus */
+  res = sd_bus_open_system(&bus);
+  if (res < 0) {
+    static Bool once;
+    if (!once) {
+      once = True;
+      fprintf(stderr, "Failed to connect to system bus: %s\n", strerror(-res));
+    }
+    return;
+  }
+
+  /* Issue the method call and store the respons message in m */
+  res = sd_bus_call_method(bus,
+                         "org.freedesktop.login1",               /* service to contact */
+                         "/org/freedesktop/login1/session/auto", /* object path */
+                         "org.freedesktop.login1.Session",       /* interface name */
+                         "SetIdleHint",                          /* method name */
+                         &error,                                 /* object to return error in */
+                         NULL,                                   /* return message on success */
+                         "b",                                    /* input signature */
+                         idle);                                  /* first argument */
+  if (res < 0) {
+    static Bool once;
+    if (!once) {
+      once = True;
+      fprintf(stderr, "Failed to issue method call: %s\n", error.message);
+    }
+  }
+
+  sd_bus_error_free(&error);
+  sd_bus_unref(bus);
+}
+# endif /* HAVE_LIBSYSTEMD || HAVE_LIBELOGIND */
 
 /* Store a property on the root window indicating that xscreensaver is
    running, and whether it is blanked or locked.  This property is read
@@ -1082,6 +1125,13 @@ store_saver_status (Display *dpy,
     free (status);
   if (dataP)
     XFree (dataP);
+
+# if defined(HAVE_LIBSYSTEMD) || defined(HAVE_LIBELOGIND)
+  if (verbose_p)
+    fprintf (stderr, "setting idle hint: %d\n", blanked_p);
+
+  set_idle_hint(blanked_p);
+# endif  /* HAVE_LIBSYSTEMD || HAVE_LIBELOGIND */
 }
 
 
