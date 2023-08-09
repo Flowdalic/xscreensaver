@@ -272,6 +272,7 @@ static unsigned int pointer_hysteresis = 0;
 #define SAVER_GFX_PROGRAM     "xscreensaver-gfx"
 #define SAVER_AUTH_PROGRAM    "xscreensaver-auth"
 #define SAVER_SYSTEMD_PROGRAM "xscreensaver-systemd"
+#define SAVER_SYSTEMD_IDLE_HINT_PROGRAM "xscreensaver-systemd-idle-hint"
 static pid_t saver_gfx_pid     = 0;
 static pid_t saver_auth_pid    = 0;
 static pid_t saver_systemd_pid = 0;
@@ -1000,6 +1001,40 @@ ensure_no_screensaver_running (Display *dpy)
   print_x11_error_p = op;
 }
 
+# if defined(HAVE_LIBSYSTEMD) || defined(HAVE_LIBELOGIND)
+static void invoke_systemd_idle_hint(Display *dpy, Bool idle) {
+    Bool systemd_idle_hint_terminated;
+    pid_t saver_systemd_idle_hint_pid;
+    int status;
+    char *av[3];
+    int ac;
+
+    ac = 2;
+    av[0] = SAVER_SYSTEMD_IDLE_HINT_PROGRAM;
+    if (idle) {
+        av[1] = "idle";
+    } else {
+        av[1] = "active";
+    }
+    av[2] = 0;
+
+    saver_systemd_idle_hint_pid = fork_and_exec(dpy, ac, av);
+
+    // fork_and_exec() failed and will already have emitted an error message.
+    if (saver_systemd_idle_hint_pid <= 0) return;
+
+    systemd_idle_hint_terminated = False;
+    while (!systemd_idle_hint_terminated) {
+        pid_t waitpid_res = waitpid(saver_systemd_idle_hint_pid, &status, 0);
+        if (waitpid_res == -1) {
+            fprintf (stderr, "%s: waitpid() for xscreensaver-systemd-idle-hint failed\n",
+                     blurb());
+            break;
+        }
+        systemd_idle_hint_terminated = WIFEXITED(status) || WIFSIGNALED(status);
+    }
+}
+#endif  /* HAVE_LIBSYSTEMD || HAVE_LIBELOGIND */
 
 /* Store a property on the root window indicating that xscreensaver is
    running, and whether it is blanked or locked.  This property is read
@@ -1082,8 +1117,11 @@ store_saver_status (Display *dpy,
     free (status);
   if (dataP)
     XFree (dataP);
-}
 
+# if defined(HAVE_LIBSYSTEMD) || defined(HAVE_LIBELOGIND)
+  invoke_systemd_idle_hint(dpy, blanked_p);
+#endif  /* HAVE_LIBSYSTEMD || HAVE_LIBELOGIND */
+}
 
 /* This process does not map any windows on the screen.  However, it creates
    one hidden window on screen 0, which is the rendezvous point for

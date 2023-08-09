@@ -164,8 +164,9 @@ AUTH_LIBS	= $(LIBS_PRE) $(XFT_LIBS) $(XINPUT_LIBS) $(XINERAMA_LIBS) \
 		  @PASSWD_LIBS@ $(LIBS_POST) $(INTL_LIBS)
 
 SYSTEMD_DEFS	= 
-SYSTEMD_SRCS	= xscreensaver-systemd.c
+SYSTEMD_SRCS	= xscreensaver-systemd.c xscreensaver-systemd-idle-hint.c
 SYSTEMD_OBJS	= xscreensaver-systemd.o blurb.o $(UTILS_BIN)/yarandom.o
+SYSTEMD_IDLE_HINT_OBJS	=  xscreensaver-systemd-idle-hint.o blurb.o
 SYSTEMD_LIBS	= $(LIBS_PRE) @SYSTEMD_LIBS@ -lX11 $(LIBS_POST)
 
 CMD_DEFS	= 
@@ -216,7 +217,7 @@ EXES		= xscreensaver xscreensaver-command xscreensaver-settings
 UTIL_EXES	= xscreensaver-gfx @EXES_SYSTEMD@
 SETUID_EXES	= xscreensaver-auth
 DEMO_EXES	= @ALL_DEMO_PROGRAMS@
-EXES_SYSTEMD	= xscreensaver-systemd
+EXES_SYSTEMD	= xscreensaver-systemd xscreensaver-systemd-idle-hint
 DESKS		= xscreensaver.desktop xscreensaver.service
 
 HDRS		= XScreenSaver_ad.h XScreenSaver_Xm_ad.h \
@@ -807,7 +808,7 @@ $(UTIL_OBJS):
 ##############################################################################
 #
 # Compiling the daemon: xscreensaver, xscreensaver-gfx, xscreensaver-auth,
-# xscreensaver-systemd and xscreensaver-comand.
+# xscreensaver-systemd, xscreensaver-systemd-idle-hint, and xscreensaver-comand.
 #
 ##############################################################################
 
@@ -843,7 +844,10 @@ xscreensaver-auth: $(AUTH_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(AUTH_OBJS) $(AUTH_LIBS)
 
 xscreensaver-systemd: $(SYSTEMD_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(SYSTEMD_OBJS) $(SYSTEMD_LIBS) -lm
+	$(CC) $(LDFLAGS) -o $@ $^ $(SYSTEMD_LIBS) -lm
+
+xscreensaver-systemd-idle-hint: $(SYSTEMD_IDLE_HINT_OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^ $(SYSTEMD_LIBS) -lm
 
 xscreensaver-command: $(CMD_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(CMD_OBJS) $(CMD_LIBS)
