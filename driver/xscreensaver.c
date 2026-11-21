@@ -1025,7 +1025,7 @@ ensure_no_screensaver_running (Display *dpy)
 }
 
 # if defined(HAVE_LIBSYSTEMD) || defined(HAVE_LIBELOGIND)
-static void set_idle_hint(int idle) {
+static void set_session_hint(const char *method, int value) {
   sd_bus *bus = NULL;
   sd_bus_error error = SD_BUS_ERROR_NULL;
   int res;
@@ -1046,16 +1046,17 @@ static void set_idle_hint(int idle) {
                          "org.freedesktop.login1",               /* service to contact */
                          "/org/freedesktop/login1/session/auto", /* object path */
                          "org.freedesktop.login1.Session",       /* interface name */
-                         "SetIdleHint",                          /* method name */
+                         method,                                 /* method name */
                          &error,                                 /* object to return error in */
                          NULL,                                   /* return message on success */
                          "b",                                    /* input signature */
-                         idle);                                  /* first argument */
+                         value);                                 /* first argument */
   if (res < 0) {
     static Bool once;
     if (!once) {
       once = True;
-      fprintf(stderr, "Failed to issue method call: %s\n", error.message);
+      fprintf(stderr, "Failed to issue method call %s: %s\n",
+              method, error.message);
     }
   }
 
@@ -1167,7 +1168,12 @@ store_saver_status (Display *dpy,
   if (verbose_p)
     fprintf (stderr, "setting idle hint: %d\n", blanked_p);
 
-  set_idle_hint(blanked_p);
+  set_session_hint("SetIdleHint", blanked_p);
+
+  if (verbose_p)
+    fprintf (stderr, "setting locked hint: %d\n", locked_p);
+
+  set_session_hint("SetLockedHint", locked_p);
 # endif  /* HAVE_LIBSYSTEMD || HAVE_LIBELOGIND */
 }
 
